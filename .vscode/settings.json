@@ -58,6 +58,8 @@
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
     "gpio.h": "c",
-    "rcc.h": "c"
+    "rcc.h": "c",
+    "gpio_common_f24.h": "c",
+    "gpio_common_f234.h": "c"
   }
 }

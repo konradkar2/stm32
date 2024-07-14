@@ -1,7 +1,7 @@
 {
   "configurations": [
     {
-      "name": "linux-gcc-x64",
+      "name": "linux-arm-gcc",
       "includePath": [
         "${workspaceFolder}/**"
       ],
@@ -9,10 +9,10 @@
         "STM32F7",
         "__ARM_ARCH_7EM__"
       ],
-      "compilerPath": "/usr/bin/gcc",
+      "compilerPath": "/usr/bin/arm-none-eabi-gcc",
       "cStandard": "${default}",
       "cppStandard": "${default}",
-      "intelliSenseMode": "linux-gcc-x64"
+      "intelliSenseMode": "gcc-arm"
     }
   ],
   "version": 4

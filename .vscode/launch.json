@@ -2,32 +2,21 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "ST-Link: Debug Bootloader",
-      "cwd": "${workspaceFolder}/bootloader",
-      "executable": "./bootloader.elf",
+      "name": "ST-Link: Launch app",
+      "cwd": "${workspaceFolder}/sandbox",
+      "executable": "./app.elf",
       "servertype": "stutil",
       "request": "launch",
       "type": "cortex-debug",
       "device": "STM32F767ZI",
       "runToEntryPoint": "main",
       "interface": "swd",
-      "preLaunchTask": "build_bootloader"
+      "preLaunchTask": "build_debug"
     },
     {
       "name": "ST-Link: Attach to Application",
-      "cwd": "${workspaceFolder}/app",
-      "executable": "./firmware.elf",
-      "servertype": "stutil",
-      "request": "attach",
-      "type": "cortex-debug",
-      "device": "STM32F767ZI",
-      "runToEntryPoint": "main",
-      "interface": "swd"
-    },
-    {
-      "name": "ST-Link: Attach to Bootloader",
-      "cwd": "${workspaceFolder}/bootloader",
-      "executable": "./bootloader.elf",
+      "cwd": "${workspaceFolder}/sandbox",
+      "executable": "./app.elf",
       "servertype": "stutil",
       "request": "attach",
       "type": "cortex-debug",
