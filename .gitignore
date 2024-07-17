@@ -11,6 +11,7 @@
 generated.*.ld
 .gdb_history
 .DS_Store
+.cache
 
 # Project files from idea/netbeans/eclipse
 nbproject/
