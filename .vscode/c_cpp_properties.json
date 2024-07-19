@@ -10,9 +10,8 @@
         "__ARM_ARCH_7EM__"
       ],
       "compilerPath": "/usr/bin/arm-none-eabi-gcc",
-      "cStandard": "${default}",
-      "cppStandard": "${default}",
-      "intelliSenseMode": "gcc-arm"
+      "cStandard": "c99",
+      "intelliSenseMode": "gcc-arm",
     }
   ],
   "version": 4

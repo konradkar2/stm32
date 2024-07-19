@@ -27,7 +27,7 @@ int main(void)
 
 	uint64_t start_time = system_get_ticks();
 	while (1) {
-		if (system_get_ticks() - start_time >= 1000) {
+		if (system_get_ticks() - start_time >= 300) {
 			gpio_toggle(LED_PORT, LED_RED_PIN);
 			gpio_toggle(LED_PORT, LED_BLUE_PIN);
 			start_time = system_get_ticks();

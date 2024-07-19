@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "ST-Link: Launch app",
-      "cwd": "${workspaceFolder}/sandbox",
+      "cwd": "${workspaceFolder}/app",
       "executable": "./app.elf",
       "servertype": "stutil",
       "request": "launch",
@@ -15,7 +15,7 @@
     },
     {
       "name": "ST-Link: Attach to Application",
-      "cwd": "${workspaceFolder}/sandbox",
+      "cwd": "${workspaceFolder}/app",
       "executable": "./app.elf",
       "servertype": "stutil",
       "request": "attach",
@@ -31,8 +31,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": false,
-      "cwd": "/home/out/stm32/sandbox",
-      "program": "/home/out/stm32/sandbox/build/Debug/outDebug",
+      "cwd": "/home/out/stm32/app",
+      "program": "/home/out/stm32/app/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
