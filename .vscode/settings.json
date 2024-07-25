@@ -63,6 +63,9 @@
     "gpio_common_f234.h": "c",
     "systick.h": "c",
     "nvic.h": "c",
-    "cstdint": "cpp"
+    "cstdint": "cpp",
+    "timer.h": "c",
+    "timer_common_all.h": "c",
+    "vector.h": "c"
   }
 }
