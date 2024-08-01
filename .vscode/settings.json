@@ -66,6 +66,7 @@
     "cstdint": "cpp",
     "timer.h": "c",
     "timer_common_all.h": "c",
-    "vector.h": "c"
+    "vector.h": "c",
+    "system.h": "c"
   }
 }

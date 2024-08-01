@@ -1,7 +1,7 @@
 
 
-#ifndef SRC_CORE_SYSTEM_H
-#define SRC_CORE_SYSTEM_H
+#ifndef INC_CORE_SYSTEM_H
+#define INC_CORE_SYSTEM_H
 
 #include <stdint.h>
 
@@ -11,4 +11,4 @@
 void system_setup(void);
 uint64_t system_get_ticks(void);
 
-#endif /* SRC_CORE_SYSTEM_H */
+#endif /* INC_CORE_SYSTEM_H */
