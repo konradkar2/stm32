@@ -1,17 +1,21 @@
 #include "core/system.h"
 #include "timer.h"
 #include <core/uart.h>
+#include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/usart.h>
+#include <stdio.h>
 
-#define LED_PORT (GPIOB)
-#define LED_RED_PIN (GPIO14)
+#define LED_PORT     (GPIOB)
+#define LED_RED_PIN  (GPIO14)
 #define LED_BLUE_PIN (GPIO7)
 
-#define UART_PORT GPIOD
-#define RX_PIN GPIO8
-#define TX_PIN GPIO9
+#define UART_PORT_CLOCK RCC_GPIOD
+#define UART_PORT	GPIOD
+#define UART_RX_PIN	GPIO6
+#define UART_TX_PIN	GPIO5
 
 #define BOOTLOADER_SIZE 0x8000U
 
@@ -27,11 +31,58 @@ static void gpio_setup(void)
 	gpio_set_af(LED_PORT, GPIO_AF9, LED_RED_PIN);
 
 	gpio_mode_setup(LED_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, LED_BLUE_PIN);
-
-	rcc_periph_clock_enable(RCC_GPIOD);
-	gpio_mode_setup(UART_PORT, GPIO_MODE_AF, GPIO_PUPD_NONE, TX_PIN | RX_PIN);
-	gpio_set_af(UART_PORT, GPIO_AF7, TX_PIN | RX_PIN);
 }
+
+// #define BAUD_RATE 115200
+// #define UART_DEV USART2
+// #define UART_CLOCK_DEV RCC_USART2
+// #define UART_NVIC_IRQ_DEV NVIC_USART2_IRQ
+// #define UART_IRQ usart2_isrS
+
+static struct uart_driver s_uart_logger_driver = {.dev		 = USART2,
+						  .clock_dev	 = RCC_USART2,
+						  .nvic_irq	 = NVIC_USART2_IRQ,
+						  .gpio_pins	 = GPIO5,
+						  .gpio_port	 = GPIOD,
+						  .gpio_port_clk = RCC_GPIOD,
+						  .gpio_af	 = GPIO_AF7,
+						  .baud_rate	 = 115200,
+						  .mode		 = USART_MODE_TX};
+
+void usart2_isr(void)
+{
+	uart_handle_irq(&s_uart_logger_driver);
+}
+
+static struct uart_driver s_uart_firmware_io = {.dev	       = USART3,
+						.clock_dev     = RCC_USART3,
+						.nvic_irq      = NVIC_USART3_IRQ,
+						.gpio_pins     = GPIO8 | GPIO9,
+						.gpio_port     = GPIOD,
+						.gpio_port_clk = RCC_GPIOD,
+						.gpio_af       = GPIO_AF7,
+						.baud_rate     = 115200,
+						.mode	       = USART_MODE_TX_RX};
+
+void usart3_isr(void)
+{
+	uart_handle_irq(&s_uart_firmware_io);
+}
+
+static int uart_write_ifc(struct _reent *reent, void *file, const char *data, int data_len)
+{
+	(void)reent;
+	struct uart_driver *drv = file;
+	uart_write(drv, (uint8_t *)data, data_len);
+	return data_len; // Return number of bytes written
+}
+
+static FILE uart_stream_cfg = {
+    ._write  = uart_write_ifc,
+    ._read   = NULL,
+    ._flags  = __SWR | __SNBF,			     // Indicate it's for writing
+    ._cookie = (void *)&s_uart_logger_driver // Pass your driver instance
+};
 
 int main(void)
 {
@@ -39,18 +90,22 @@ int main(void)
 	system_setup();
 	gpio_setup();
 	timer_setup();
-	uart_setup();
+	uart_setup(&s_uart_logger_driver);
+	uart_setup(&s_uart_firmware_io);
+	stdout = &uart_stream_cfg;
 
-	//uint64_t blue_time  = system_get_ticks();
+	printf("Hello, UART!\n");
+
+	// uint64_t blue_time  = system_get_ticks();
 	uint64_t red_time   = system_get_ticks();
 	float	 duty_cycle = 100;
 
 	// timer_pwm_set_duty_cycle(duty_cycle);
 	while (1) {
-		//if (system_get_ticks() - blue_time >= 300) {
+		// if (system_get_ticks() - blue_time >= 300) {
 		//	gpio_toggle(LED_PORT, LED_BLUE_PIN);
 		//	blue_time = system_get_ticks();
-		//}
+		// }
 
 		if (system_get_ticks() - red_time >= 30) {
 			duty_cycle -= 1;
@@ -61,9 +116,16 @@ int main(void)
 			red_time = system_get_ticks();
 		}
 
-		if (uart_data_available()) {
-			uint8_t data = uart_read_byte();
-			uart_write_byte(data + 1);
+		if (uart_data_available(&s_uart_firmware_io)) {
+			uint8_t data = uart_read_byte(&s_uart_firmware_io);
+			//this works
+			uart_write_byte(&s_uart_firmware_io, data + 1);
+
+			//this works fine
+			uart_write_byte(&s_uart_logger_driver, data + 1);
+
+			//this does not work
+			printf("Got %c on firmware UART!!\n", data);
 		}
 	}
 

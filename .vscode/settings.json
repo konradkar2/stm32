@@ -67,6 +67,15 @@
     "timer.h": "c",
     "timer_common_all.h": "c",
     "vector.h": "c",
-    "system.h": "c"
+    "system.h": "c",
+    "usart.h": "c",
+    "usart_common_all.h": "c",
+    "usart_common_v2.h": "c",
+    "concepts": "c",
+    "cstdio": "c",
+    "type_traits": "c",
+    "new": "c",
+    "typeinfo": "c",
+    "stdio.h": "c"
   }
 }

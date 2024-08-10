@@ -1,75 +1,80 @@
 #include "core/uart.h"
+#include "core/ring_buffer.h"
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/usart.h>
-#include <libopencm3/stm32/gpio.h>
 #include <stddef.h>
 
-#define BAUD_RATE 115200
-#define UART_DEV USART3
-
-static uint8_t data_buffer    = 0U;
-static bool    data_available = false;
-#define LED_PORT (GPIOB)
-#define LED_BLUE_PIN (GPIO7)
-
-// irq handler
-void usart3_isr(void)
+void uart_handle_irq(struct uart_driver *drv)
 {
-    gpio_toggle(LED_PORT, LED_BLUE_PIN);
-	const bool overrun_occurred = usart_get_flag(UART_DEV, USART_FLAG_ORE) == 1;
-	const bool received_data    = usart_get_flag(UART_DEV, USART_FLAG_RXNE) == 1;
+	const bool overrun_occurred = usart_get_flag(drv->dev, USART_FLAG_ORE) == 1;
+	const bool received_data    = usart_get_flag(drv->dev, USART_FLAG_RXNE) == 1;
 
 	if (received_data || overrun_occurred) {
-		data_buffer    = (uint8_t)usart_recv(UART_DEV);
-		data_available = true;
+		if (ring_buffer_write(&drv->rb, usart_recv(drv->dev))) {
+			// handle buffer overflow
+		}
 	}
 }
 
-void uart_setup(void)
+void uart_setup(struct uart_driver *drv)
 {
-	rcc_periph_clock_enable(RCC_USART3);
-	usart_set_mode(UART_DEV, USART_MODE_TX_RX);
-	usart_set_flow_control(UART_DEV, USART_FLOWCONTROL_NONE);
-	usart_set_databits(UART_DEV, 8);
-	usart_set_baudrate(UART_DEV, BAUD_RATE);
-	usart_set_parity(UART_DEV, 0);
-	usart_set_stopbits(UART_DEV, 1);
+	ring_buffer_setup(&drv->rb, drv->rb_buffer, sizeof(drv->rb_buffer));
 
-	usart_enable_rx_interrupt(UART_DEV);
-	nvic_enable_irq(NVIC_USART3_IRQ);
+    rcc_periph_clock_enable(drv->gpio_port_clk);
+	gpio_mode_setup(drv->gpio_port, GPIO_MODE_AF, GPIO_PUPD_NONE, drv->gpio_pins);
+	gpio_set_af(drv->gpio_port, drv->gpio_af, drv->gpio_pins);
 
-	usart_enable(UART_DEV);
+	rcc_periph_clock_enable(drv->clock_dev);
+	usart_set_mode(drv->dev, drv->mode);
+	usart_set_flow_control(drv->dev, USART_FLOWCONTROL_NONE);
+	usart_set_databits(drv->dev, 8);
+	usart_set_baudrate(drv->dev, drv->baud_rate);
+	usart_set_parity(drv->dev, 0);
+	usart_set_stopbits(drv->dev, 1);
+
+	usart_enable_rx_interrupt(drv->dev);
+	nvic_enable_irq(drv->nvic_irq);
+
+	usart_enable(drv->dev);
 }
 
-void uart_write(uint8_t *data, const uint32_t length)
+void uart_write(struct uart_driver *drv, uint8_t *data, const uint32_t length)
 {
 	for (size_t i = 0; i < length; ++i) {
-		uart_write_byte(data[i]);
+		uart_write_byte(drv, data[i]);
 	}
 }
 
-void uart_write_byte(uint8_t data)
+void uart_write_byte(struct uart_driver *drv, uint8_t data)
 {
-	usart_send_blocking(UART_DEV, (uint16_t)data);
+	usart_send_blocking(drv->dev, (uint16_t)data);
 }
 
-uint32_t uart_read(uint8_t *data, const uint32_t length)
+uint32_t uart_read(struct uart_driver *drv, uint8_t *data, const uint32_t length)
 {
-	if (length > 0 && data_available) {
-		*data	       = data_buffer;
-		data_available = false;
-		return 1;
+	if (length == 0) {
+		return 0;
 	}
 
-	return 0;
+	for (size_t i = 0; i < length; ++i) {
+		if (!ring_buffer_read(&drv->rb, &data[i])) {
+			return i;
+		}
+	}
+
+	return length;
 }
 
-uint8_t uart_read_byte(void) {
-    data_available = false;
-    return data_buffer;
+uint8_t uart_read_byte(struct uart_driver *drv)
+{
+	uint8_t byte = 0;
+	uart_read(drv, &byte, 1);
+
+	return byte;
 }
 
-bool uart_data_available(void) {
-    return data_available;
+bool uart_data_available(struct uart_driver *drv)
+{
+	return !ring_buffer_empty(&drv->rb);
 }
