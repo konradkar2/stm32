@@ -1,3 +1,7 @@
+//most of these is taken from
+// https://www.youtube.com/@LowByteProductions
+// 
+
 #include "core/system.h"
 #include "timer.h"
 #include <core/uart.h>
@@ -11,11 +15,6 @@
 #define LED_PORT     (GPIOB)
 #define LED_RED_PIN  (GPIO14)
 #define LED_BLUE_PIN (GPIO7)
-
-#define UART_PORT_CLOCK RCC_GPIOD
-#define UART_PORT	GPIOD
-#define UART_RX_PIN	GPIO6
-#define UART_TX_PIN	GPIO5
 
 #define BOOTLOADER_SIZE 0x8000U
 
@@ -33,12 +32,6 @@ static void gpio_setup(void)
 	gpio_mode_setup(LED_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, LED_BLUE_PIN);
 }
 
-// #define BAUD_RATE 115200
-// #define UART_DEV USART2
-// #define UART_CLOCK_DEV RCC_USART2
-// #define UART_NVIC_IRQ_DEV NVIC_USART2_IRQ
-// #define UART_IRQ usart2_isrS
-
 static struct uart_driver s_uart_logger_driver = {.dev		 = USART2,
 						  .clock_dev	 = RCC_USART2,
 						  .nvic_irq	 = NVIC_USART2_IRQ,
@@ -48,11 +41,6 @@ static struct uart_driver s_uart_logger_driver = {.dev		 = USART2,
 						  .gpio_af	 = GPIO_AF7,
 						  .baud_rate	 = 115200,
 						  .mode		 = USART_MODE_TX};
-
-void usart2_isr(void)
-{
-	uart_handle_irq(&s_uart_logger_driver);
-}
 
 static struct uart_driver s_uart_firmware_io = {.dev	       = USART3,
 						.clock_dev     = RCC_USART3,
@@ -69,18 +57,27 @@ void usart3_isr(void)
 	uart_handle_irq(&s_uart_firmware_io);
 }
 
-static int uart_write_ifc(struct _reent *reent, void *file, const char *data, int data_len)
+static uint8_t write_count = 0;
+static int uart_write_ifc(struct _reent *reent, void *cookie, const char *data, int data_len)
 {
+	write_count++;
 	(void)reent;
-	struct uart_driver *drv = file;
-	uart_write(drv, (uint8_t *)data, data_len);
+	struct uart_driver *drv = cookie;;
+
+	for (int i = 0; i < data_len; ++i) {
+		uart_write_byte(drv, data[i]);
+		if (data[i] == '\n') {
+			uart_write_byte(drv, '\r');
+		}
+	}
+
 	return data_len; // Return number of bytes written
 }
 
 static FILE uart_stream_cfg = {
     ._write  = uart_write_ifc,
     ._read   = NULL,
-    ._flags  = __SWR | __SNBF,			     // Indicate it's for writing
+    ._flags  = __SWR | __SNBF,		     // OK to write | UNBUFFERED
     ._cookie = (void *)&s_uart_logger_driver // Pass your driver instance
 };
 
@@ -100,6 +97,9 @@ int main(void)
 	uint64_t red_time   = system_get_ticks();
 	float	 duty_cycle = 100;
 
+	for(int i = 0; i< 255 ; ++i)
+		printf("%d: A message from UART logger!!\n", i);
+		
 	// timer_pwm_set_duty_cycle(duty_cycle);
 	while (1) {
 		// if (system_get_ticks() - blue_time >= 300) {
@@ -118,15 +118,10 @@ int main(void)
 
 		if (uart_data_available(&s_uart_firmware_io)) {
 			uint8_t data = uart_read_byte(&s_uart_firmware_io);
-			//this works
 			uart_write_byte(&s_uart_firmware_io, data + 1);
-
-			//this works fine
-			uart_write_byte(&s_uart_logger_driver, data + 1);
-
-			//this does not work
-			printf("Got %c on firmware UART!!\n", data);
 		}
+
+		
 	}
 
 	// Never return

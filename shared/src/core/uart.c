@@ -21,7 +21,7 @@ void uart_setup(struct uart_driver *drv)
 {
 	ring_buffer_setup(&drv->rb, drv->rb_buffer, sizeof(drv->rb_buffer));
 
-    rcc_periph_clock_enable(drv->gpio_port_clk);
+	rcc_periph_clock_enable(drv->gpio_port_clk);
 	gpio_mode_setup(drv->gpio_port, GPIO_MODE_AF, GPIO_PUPD_NONE, drv->gpio_pins);
 	gpio_set_af(drv->gpio_port, drv->gpio_af, drv->gpio_pins);
 
@@ -33,8 +33,11 @@ void uart_setup(struct uart_driver *drv)
 	usart_set_parity(drv->dev, 0);
 	usart_set_stopbits(drv->dev, 1);
 
-	usart_enable_rx_interrupt(drv->dev);
-	nvic_enable_irq(drv->nvic_irq);
+	if ((drv->mode & USART_MODE_RX) == USART_MODE_RX) {
+
+		usart_enable_rx_interrupt(drv->dev);
+		nvic_enable_irq(drv->nvic_irq);
+	}
 
 	usart_enable(drv->dev);
 }
