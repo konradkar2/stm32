@@ -1,9 +1,10 @@
-//most of these is taken from
-// https://www.youtube.com/@LowByteProductions
-// 
+// most of these is taken from
+//  https://www.youtube.com/@LowByteProductions
+//
 
 #include "core/system.h"
 #include "timer.h"
+#include <stdint.h>
 #include <core/uart.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/scb.h>
@@ -57,12 +58,12 @@ void usart3_isr(void)
 	uart_handle_irq(&s_uart_firmware_io);
 }
 
-static uint8_t write_count = 0;
-static int uart_write_ifc(struct _reent *reent, void *cookie, const char *data, int data_len)
+static volatile int write_count = 0;
+static int     uart_write_ifc(struct _reent *reent, void *cookie, const char *data, int data_len)
 {
 	write_count++;
 	(void)reent;
-	struct uart_driver *drv = cookie;;
+	struct uart_driver *drv = cookie;
 
 	for (int i = 0; i < data_len; ++i) {
 		uart_write_byte(drv, data[i]);
@@ -97,9 +98,6 @@ int main(void)
 	uint64_t red_time   = system_get_ticks();
 	float	 duty_cycle = 100;
 
-	for(int i = 0; i< 255 ; ++i)
-		printf("%d: A message from UART logger!!\n", i);
-		
 	// timer_pwm_set_duty_cycle(duty_cycle);
 	while (1) {
 		// if (system_get_ticks() - blue_time >= 300) {
@@ -119,9 +117,9 @@ int main(void)
 		if (uart_data_available(&s_uart_firmware_io)) {
 			uint8_t data = uart_read_byte(&s_uart_firmware_io);
 			uart_write_byte(&s_uart_firmware_io, data + 1);
+			//uart_write_byte(&s_uart_logger_driver, data );
+			fprintf(&uart_stream_cfg, "%d: Hello, UART!\n", (int)write_count);
 		}
-
-		
 	}
 
 	// Never return

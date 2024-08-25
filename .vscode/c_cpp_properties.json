@@ -3,7 +3,9 @@
     {
       "name": "linux-arm-gcc",
       "includePath": [
-        "${workspaceFolder}/**"
+        "${workspaceFolder}/**",
+        "/usr/share/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/include/**",
+        "/usr/share/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi/lib/gcc/arm-none-eabi/**"
       ],
       "defines": [
         "STM32F7",

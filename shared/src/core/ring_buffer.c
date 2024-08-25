@@ -13,6 +13,23 @@ bool ring_buffer_empty(struct ring_buffer *rb)
 	return rb->read_index == rb->write_index;
 }
 
+uint32_t ring_buffer_get_data_len(struct ring_buffer *rb)
+{
+	uint32_t total_size = rb->mask + 1;
+
+	if (rb->write_index >= rb->read_index) {
+		return rb->write_index - rb->read_index;
+	} else {
+		return total_size - (rb->read_index - rb->write_index);
+	}
+}
+
+uint32_t ring_buffer_get_left_space_len(struct ring_buffer *rb)
+{
+	uint32_t total_size = rb->mask + 1;
+	return total_size - ring_buffer_get_data_len(rb);
+}
+
 bool ring_buffer_write(struct ring_buffer *rb, uint8_t byte)
 {
 	uint32_t local_read_index  = rb->read_index;
@@ -42,6 +59,31 @@ bool ring_buffer_read(struct ring_buffer *rb, uint8_t *byte)
 	*byte		 = rb->buffer[local_read_index];
 	local_read_index = (local_read_index + 1) & rb->mask;
 	rb->read_index	 = local_read_index;
+
+	return true;
+}
+
+bool ring_buffer_write_many(struct ring_buffer *rb, const uint8_t *data, uint32_t data_len)
+{
+	for (uint32_t i = 0; i < data_len; ++i) {
+		if (ring_buffer_write(rb, data[i]) == false) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool ring_buffer_read_many(struct ring_buffer *rb, uint8_t *data, uint32_t data_len)
+{
+	for (uint32_t i = 0; i < data_len; ++i) {
+		uint8_t tmp = 0;
+
+		if (ring_buffer_read(rb, &tmp) == false) {
+			return false;
+		}
+		data[i] = tmp;
+	}
 
 	return true;
 }
