@@ -5,7 +5,7 @@
 static struct comms_packet retx_packet = {0};
 static struct comms_packet ack_packet  = {0};
 
-static uint8_t comms_compute_crc(const struct comms_packet *packet)
+uint8_t comms_compute_crc(const struct comms_packet *packet)
 {
 	return crc8((uint8_t *)packet, sizeof(struct comms_packet) - 1); // exclude CRC
 }
@@ -28,12 +28,17 @@ void comms_setup(struct comms *comms, struct uart_driver *uart_drv)
 	ring_buffer_setup(&comms->packet_rb, comms->packet_rb_buffer, PACKET_RB_LEN);
 }
 
+#define TRACE_LOG() printf("%s:%d", __func__, __LINE__)
+
 void comms_update(struct comms *comms)
 {
+
 	struct comms_packet *pkt      = &comms->packet_buffer;
 	struct uart_driver  *uart_drv = comms->uart_drv;
 
 	while (uart_data_available(uart_drv)) {
+		printf("%s: got some data\n", __func__);
+
 		switch (comms->state) {
 		case comms_state_length: {
 			pkt->length  = uart_read_byte(uart_drv);

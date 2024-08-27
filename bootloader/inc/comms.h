@@ -50,6 +50,7 @@ bool comms_packet_available(struct comms *comms);
 void comms_write(struct comms *comms, struct comms_packet *packet);
 void comms_read(struct comms *comms, struct comms_packet *packet);
 
+uint8_t comms_compute_crc(const struct comms_packet *packet);
 void comms_dump_statas(struct comms *comms, FILE * file);
 
 #endif /* INC_COMMS_H */
