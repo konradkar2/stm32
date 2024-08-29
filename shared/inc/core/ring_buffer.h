@@ -13,8 +13,8 @@ struct ring_buffer {
 
 void ring_buffer_setup(struct ring_buffer * rb, uint8_t * buffer, uint32_t size);
 bool ring_buffer_empty(struct ring_buffer * rb);
-uint32_t ring_buffer_get_data_len(struct ring_buffer * rb);
-uint32_t ring_buffer_get_left_space_len(struct ring_buffer * rb);
+uint32_t ring_buffer_get_data_len(const struct ring_buffer * rb);
+uint32_t ring_buffer_get_left_space_len(const struct ring_buffer * rb);
 bool ring_buffer_write(struct ring_buffer * rb, uint8_t byte);
 bool ring_buffer_read(struct ring_buffer * rb, uint8_t * byte);
 bool ring_buffer_write_many(struct ring_buffer * rb, const uint8_t * data, uint32_t data_len);

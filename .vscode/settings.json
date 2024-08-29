@@ -78,5 +78,6 @@
     "typeinfo": "c",
     "stdio.h": "c",
     "uart.h": "c"
-  }
+  },
+  "cortex-debug.variableUseNaturalFormat": false
 }

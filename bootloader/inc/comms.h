@@ -21,6 +21,7 @@ struct comms_packet {
 	uint8_t data[PACKET_DATA_LEN];
 	uint8_t crc;
 };
+void log_packet(const struct comms_packet *packet);
 
 enum comms_state_t {
 	comms_state_length,
@@ -30,13 +31,20 @@ enum comms_state_t {
 };
 
 struct comms_stats {
-	uint64_t write_fails_cnt;
+	uint64_t buffer_full_cnt;
+	uint64_t pkts_data_cnt;
+	uint64_t pkts_ack_cnt;
+	uint64_t pkts_retx_cnt;
+	uint64_t pkts_nok_cnt;
 };
+
+struct comms;
+void print_stats(const struct comms * comms);
 
 struct comms {
 	struct uart_driver *uart_drv;
 	enum comms_state_t  state;
-	uint8_t		    state_bytes_count;
+	uint8_t		    data_idx;
 	struct comms_packet packet_buffer;
 	struct comms_packet last_write_packet;
 	uint8_t		    packet_rb_buffer[PACKET_RB_LEN];
@@ -51,6 +59,5 @@ void comms_write(struct comms *comms, struct comms_packet *packet);
 void comms_read(struct comms *comms, struct comms_packet *packet);
 
 uint8_t comms_compute_crc(const struct comms_packet *packet);
-void comms_dump_statas(struct comms *comms, FILE * file);
 
 #endif /* INC_COMMS_H */

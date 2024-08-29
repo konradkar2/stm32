@@ -13,7 +13,7 @@ bool ring_buffer_empty(struct ring_buffer *rb)
 	return rb->read_index == rb->write_index;
 }
 
-uint32_t ring_buffer_get_data_len(struct ring_buffer *rb)
+uint32_t ring_buffer_get_data_len(const struct ring_buffer *rb)
 {
 	uint32_t total_size = rb->mask + 1;
 
@@ -24,7 +24,7 @@ uint32_t ring_buffer_get_data_len(struct ring_buffer *rb)
 	}
 }
 
-uint32_t ring_buffer_get_left_space_len(struct ring_buffer *rb)
+uint32_t ring_buffer_get_left_space_len(const struct ring_buffer *rb)
 {
 	uint32_t total_size = rb->mask + 1;
 	return total_size - ring_buffer_get_data_len(rb);

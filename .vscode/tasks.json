@@ -5,9 +5,18 @@
     "tasks": [
       {
         "type": "shell",
-        "label": "build_debug",
+        "label": "build_debug_app",
         "options": {
           "cwd": "app"
+        },
+        "command": "make bin -j 10",
+        "problemMatcher": "$gcc"
+      },
+      {
+        "type": "shell",
+        "label": "build_debug_bootloader",
+        "options": {
+          "cwd": "bootloader"
         },
         "command": "make bin -j 10",
         "problemMatcher": "$gcc"

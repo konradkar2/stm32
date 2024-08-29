@@ -56,8 +56,33 @@ int main(void)
 	packet.crc = comms_compute_crc(&packet);
 
 	comms_write(&comms,&packet);
+
+	print_stats((const struct comms *)&comms);
+
+	struct comms_packet packets [10] = {0};
+	int idx = 0;
 	while (true) {
 		comms_update(&comms);
+		if(comms_packet_available(&comms)) {
+			comms_read(&comms, &packets[idx]);
+			idx++;
+			if(idx == 10 ) break;
+		}
+	}
+
+	print_stats((const struct comms *)&comms);
+	for(int i = 0; i< 10 ; ++i) {
+		log_packet((const struct comms_packet *)&packets[i]);
+	}
+
+	print_stats((const struct comms *)&comms);
+
+	printf("goodbye!\n");
+	printf("goodbye!\n");
+	printf("goodbye!\n");
+
+	while(true) {
+
 	}
 
 	return 0;
