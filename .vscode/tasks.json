@@ -7,7 +7,7 @@
         "type": "shell",
         "label": "build_debug_app",
         "options": {
-          "cwd": "app"
+          "cwd": "${workspaceFolder}/app"
         },
         "command": "make bin -j 10",
         "problemMatcher": "$gcc"
@@ -16,7 +16,7 @@
         "type": "shell",
         "label": "build_debug_bootloader",
         "options": {
-          "cwd": "bootloader"
+          "cwd": "${workspaceFolder}/bootloader"
         },
         "command": "make bin -j 10",
         "problemMatcher": "$gcc"

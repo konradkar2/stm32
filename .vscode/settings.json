@@ -77,7 +77,9 @@
     "new": "c",
     "typeinfo": "c",
     "stdio.h": "c",
-    "uart.h": "c"
+    "uart.h": "c",
+    "scb.h": "c",
+    "memorymap.h": "c"
   },
   "cortex-debug.variableUseNaturalFormat": false
 }

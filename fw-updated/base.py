@@ -2,6 +2,7 @@ import time
 import serial
 import readchar
 import struct
+from enum import Enum
 
 serial_dev = "/dev/ttyACM0"
 
@@ -18,13 +19,16 @@ ack_packet = {
     "crc": 0,  # calculate later
 }
 
-data_packet = {
+def create_data_packet(calculate_crc=True):
+    pkt = {
     "length": 16,
     "type": 0,  # data
     "data": bytes([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF]),
     "crc": 0,  # calculate later
-}
+    }
 
+    pkt["crc"] = packet_crc8(pkt)
+    return pkt
 
 def crc8(data):
     crc = 0
@@ -40,11 +44,83 @@ def crc8(data):
     return crc
 
 
-def packet_crc8(packet):
-    packed_data = struct.pack(
-        comms_packet_format_crc, packet["length"], packet["type"], packet["data"]
-    )
-    return crc8(packed_data)
+   
+
+
+
+def send_packet(ser, packet_bytes):
+    ser.write(packet_bytes)
+
+class Direction(Enum):
+        RX = 1
+        TX = 2
+
+class Packet:
+    def __init__(self):
+        self.dir = Direction.TX
+        self.pkt = {
+            "length": 16,
+            "type": 0,  # data
+            "data": bytes([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF]),
+            "crc": 0,  # calculate later
+        }
+    
+    @staticmethod
+    def deserialize(bytes):
+        packet = Packet()
+        unpacked_data = struct.unpack(comms_packet_format, bytes)
+        packet.pkt = {
+            "length": unpacked_data[0],
+            "type": unpacked_data[1],
+            "data": unpacked_data[2],
+            "crc": unpacked_data[3],
+        }
+        return packet
+
+    def serialize(self):
+        bytes = struct.pack(
+            comms_packet_format,
+            self.pkt["length"],
+            self.pkt["type"],
+            self.pkt["data"],
+            self.pkt["crc"],
+        )
+
+        return bytes
+
+
+    def calculate_crc(self):
+        packed_data = struct.pack(
+        comms_packet_format_crc, self.pkt["length"], self.pkt["type"], self.pkt["data"]
+        )
+        return crc8(packed_data)
+    
+    def update_crc(self):
+        self.pkt["crc"] = self.calculate_crc()
+
+    def log(self):
+        packet_type_str = {0: "DATA", 1: "ACK", 2: "RETX"}.get(self.pkt["type"], "UNKNOWN")
+
+        # Convert the data field to a hex string for readability
+        data_hex = " ".join(f"{byte:02X}" for byte in self.pkt["data"])
+
+        # Log the packet
+
+        crc_status = "valid"
+        if self.calculate_crc() != self.pkt["crc"]:
+            crc_status = f"invalid, expected: 0x{self.calculate_crc():02X}"
+
+        direction_str = ""
+        if(self.dir ==  Direction.RX):
+            direction_str = "<- (RX)"
+        else:
+            direction_str = "-> (TX)"
+
+        print(f"Packet Log: {direction_str}")
+        print(f"  Length: {self.pkt['length']}")
+        print(f"  Type: {packet_type_str} ({self.pkt['type']})")
+        print(f"  Data: {data_hex}")
+        print(f"  CRC: 0x{self.pkt['crc']:02X} - {crc_status}")
 
 
 def receive_packet(ser: serial.Serial):
@@ -61,52 +137,7 @@ def receive_packet(ser: serial.Serial):
                 len(received_data), comms_packet_len
             )
         )
-
-    unpacked_data = struct.unpack(comms_packet_format, received_data)
-    return {
-        "length": unpacked_data[0],
-        "type": unpacked_data[1],
-        "data": unpacked_data[2],
-        "crc": unpacked_data[3],
-    }
-
-
-def send_packet(ser, packet, calculate_crc=True):
-    # Pack the struct data into byte
-    if calculate_crc:
-        packet["crc"] = packet_crc8(packet)
-
-    print("sending packet")
-    log_packet(packet)
-
-    bytes = struct.pack(
-        comms_packet_format,
-        packet["length"],
-        packet["type"],
-        packet["data"],
-        packet["crc"],
-    )
-    ser.write(bytes)
-
-
-def log_packet(packet):
-    packet_type_str = {0: "DATA", 1: "ACK", 2: "RETX"}.get(packet["type"], "UNKNOWN")
-
-    # Convert the data field to a hex string for readability
-    data_hex = " ".join(f"{byte:02X}" for byte in packet["data"])
-
-    # Log the packet
-
-    crc_status = "invalid"
-    if packet_crc8(packet) == packet["crc"]:
-        crc_status = "valid"
-
-    print(f"Packet Log:")
-    print(f"  Length: {packet['length']}")
-    print(f"  Type: {packet_type_str} ({packet['type']})")
-    print(f"  Data: {data_hex}")
-    print(f"  CRC: 0x{packet['crc']:02X} - {crc_status}")
-
+    return Packet.deserialize(received_data)
 
 def main():
     # no need to close it as OS will do it
@@ -124,20 +155,26 @@ def main():
 
     print("{} opened successfuly".format(serial_dev))
 
-    packet = receive_packet(ser)
-    log_packet(packet)
+    rx_packet = receive_packet(ser)
+    rx_packet.log()
 
-    send_packet(ser, data_packet, calculate_crc=False)
-    packet = receive_packet(ser)
-    log_packet(packet)
+    tx_packet = Packet()
+    tx_packet.log()
+    send_packet(ser, tx_packet.serialize())
 
+    rx_packet = receive_packet(ser)
+    rx_packet.log()
+
+    tx_packet = Packet()
     for i in range(0,10):
         print("sending packet no {}".format(i))
+        tx_packet.pkt['data'] = bytes([x + 1 for x in tx_packet.pkt['data']])
+        tx_packet.update_crc()
+        tx_packet.log()
+        send_packet(ser, tx_packet.serialize())
 
-        data_packet['data'] = bytes([x + 1 for x in data_packet['data']])
-        send_packet(ser, data_packet, calculate_crc=True)
-        packet = receive_packet(ser)
-        log_packet(packet)
+        rx_packet = receive_packet(ser)
+        rx_packet.log()
 
 
 if __name__ == "__main__":
