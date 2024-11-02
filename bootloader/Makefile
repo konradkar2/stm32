@@ -71,7 +71,7 @@ OBJS		+= $(SHARED_SRC_DIR)/core/crc8.o
 
 TGT_CFLAGS	+= $(OPT) $(CSTD) $(DEBUG)
 TGT_CFLAGS	+= $(ARCH_FLAGS)
-TGT_CFLAGS	+= -Wextra -Werror -Wimplicit-function-declaration
+TGT_CFLAGS	+= -Wextra -Werror -Wimplicit-function-declaration -Wimplicit-fallthrough
 TGT_CFLAGS	+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
 TGT_CFLAGS	+= -fno-common -ffunction-sections -fdata-sections
 

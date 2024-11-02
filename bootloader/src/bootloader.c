@@ -157,12 +157,14 @@ int main(void)
 		printf("dual bank is enabled, cannot perform flash operation\n");
 		return 1;
 	}
-	struct simple_timer timer = {};
-	simple_timer_setup(&timer, TIMEOUT_MS, false);
+
+	simple_timer_setup(&bl_state.timeout_timer, TIMEOUT_MS, false);
 
 	printf("Waiting for FW update sync...\n");
 
 	while (true) {
+		check_timeout();
+
 		switch (bl_state.step) {
 		case bl_state_step_sync: {
 			if (uart_data_available(&s_uart_firmware_io)) {
@@ -242,7 +244,7 @@ int main(void)
 				bl_state.fw_length = fw_length;
 				advance_fsm_to(bl_state_step_erase_app);
 			}
-			break;
+		} break;
 		case bl_state_step_erase_app: {
 			bl_flash_erase_main_app();
 			comms_send_control_packet(&comms, comms_packet_type_ready_for_firmware);
@@ -271,10 +273,8 @@ int main(void)
 
 		} break;
 		}
-
-			check_timeout();
-		}
-
-		return 0;
 	}
+
+	return 0;
 }
+
