@@ -10,10 +10,21 @@
 #define PACKET_RB_LEN	256
 
 enum comms_packet_type {
-	comms_packet_type_data = 0,
-	comms_packet_type_ack  = 1,
-	comms_packet_type_retx = 2,
+	comms_packet_type_data		     = 0,
+	comms_packet_type_ack		     = 1,
+	comms_packet_type_retx		     = 2,
+	comms_packet_type_seq_observed	     = 3,
+	comms_packet_type_fw_update_req	     = 4,
+	comms_packet_type_fw_update_res	     = 5,
+	comms_packet_type_device_id_req	     = 6,
+	comms_packet_type_device_id_res	     = 7,
+	comms_packet_type_fw_length_req	     = 8,
+	comms_packet_type_fw_length_res	     = 9,
+	comms_packet_type_ready_for_firmware = 10,
+	comms_packet_type_update_successful  = 11,
+	comms_packet_type_fw_update_aborted  = 12,
 };
+const char * comms_packet_type_str(enum comms_packet_type);
 
 struct comms_packet {
 	uint8_t length;
@@ -39,7 +50,7 @@ struct comms_stats {
 };
 
 struct comms;
-void print_stats(const struct comms * comms);
+void print_stats(const struct comms *comms);
 
 struct comms {
 	struct uart_driver *uart_drv;
@@ -55,8 +66,9 @@ struct comms {
 void comms_setup(struct comms *comms, struct uart_driver *uart_drv);
 void comms_update(struct comms *comms);
 bool comms_packet_available(struct comms *comms);
-void comms_write(struct comms *comms, struct comms_packet *packet);
-void comms_read(struct comms *comms, struct comms_packet *packet);
+void comms_send(struct comms *comms, struct comms_packet *packet);
+void comms_send_control_packet(struct comms *comms, enum comms_packet_type type);
+void comms_receive(struct comms *comms, struct comms_packet *packet);
 
 uint8_t comms_compute_crc(const struct comms_packet *packet);
 

@@ -27,7 +27,7 @@
     {
       "name": "ST-Link: Launch bootloader",
       "cwd": "${workspaceFolder}/bootloader",
-      "executable": "./bootloader.elf",
+      "executable": "${workspaceFolder}/bootloader/bootloader.elf",
       "servertype": "stutil",
       "request": "launch",
       "type": "cortex-debug",

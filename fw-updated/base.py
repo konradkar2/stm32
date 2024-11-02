@@ -11,24 +11,6 @@ comms_packet_len = 19
 comms_packet_format = "B B 16s B"
 comms_packet_format_crc = "B B 16s"
 
-# Example of data to send
-ack_packet = {
-    "length": 16,
-    "type": 1,  # ack
-    "data": bytes([0xFF] * 16),  # pad
-    "crc": 0,  # calculate later
-}
-
-def create_data_packet(calculate_crc=True):
-    pkt = {
-    "length": 16,
-    "type": 0,  # data
-    "data": bytes([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF]),
-    "crc": 0,  # calculate later
-    }
-
-    pkt["crc"] = packet_crc8(pkt)
-    return pkt
 
 def crc8(data):
     crc = 0
@@ -44,16 +26,33 @@ def crc8(data):
     return crc
 
 
-   
-
-
-
 def send_packet(ser, packet_bytes):
     ser.write(packet_bytes)
 
+
 class Direction(Enum):
-        RX = 1
-        TX = 2
+    RX = 1
+    TX = 2
+
+
+class PacketType(Enum):
+    data = 0
+    ack = 1
+    retx = 2
+    seq_observed = 3
+    fw_update_req = 4
+    fw_update_res = 5
+    device_id_req = 6
+    device_id_res = 7
+    fw_length_req = 8
+    fw_length_res = 9
+    ready_for_data = 10
+    fw_update_successful = 11
+    fw_update_aborted = 12
+    
+    def __str__(self):
+        return str(self.value)
+
 
 class Packet:
     def __init__(self):
@@ -64,11 +63,12 @@ class Packet:
             "data": bytes([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF]),
             "crc": 0,  # calculate later
         }
-    
+
     @staticmethod
     def deserialize(bytes):
         packet = Packet()
         unpacked_data = struct.unpack(comms_packet_format, bytes)
+        packet.dir = Direction.RX
         packet.pkt = {
             "length": unpacked_data[0],
             "type": unpacked_data[1],
@@ -88,18 +88,17 @@ class Packet:
 
         return bytes
 
-
     def calculate_crc(self):
         packed_data = struct.pack(
-        comms_packet_format_crc, self.pkt["length"], self.pkt["type"], self.pkt["data"]
+            comms_packet_format_crc, self.pkt["length"], self.pkt["type"], self.pkt["data"]
         )
         return crc8(packed_data)
-    
+
     def update_crc(self):
         self.pkt["crc"] = self.calculate_crc()
 
     def log(self):
-        packet_type_str = {0: "DATA", 1: "ACK", 2: "RETX"}.get(self.pkt["type"], "UNKNOWN")
+        packet_type_str = str(PacketType(self.pkt["type"]))
 
         # Convert the data field to a hex string for readability
         data_hex = " ".join(f"{byte:02X}" for byte in self.pkt["data"])
@@ -111,7 +110,7 @@ class Packet:
             crc_status = f"invalid, expected: 0x{self.calculate_crc():02X}"
 
         direction_str = ""
-        if(self.dir ==  Direction.RX):
+        if (self.dir == Direction.RX):
             direction_str = "<- (RX)"
         else:
             direction_str = "-> (TX)"
@@ -119,7 +118,7 @@ class Packet:
         print(f"Packet Log: {direction_str}")
         print(f"  Length: {self.pkt['length']}")
         print(f"  Type: {packet_type_str} ({self.pkt['type']})")
-        print(f"  Data: {data_hex}")
+        print(f"  Data (hex): {data_hex}")
         print(f"  CRC: 0x{self.pkt['crc']:02X} - {crc_status}")
 
 
@@ -138,6 +137,7 @@ def receive_packet(ser: serial.Serial):
             )
         )
     return Packet.deserialize(received_data)
+
 
 def main():
     # no need to close it as OS will do it
@@ -166,7 +166,7 @@ def main():
     rx_packet.log()
 
     tx_packet = Packet()
-    for i in range(0,10):
+    for i in range(0, 10):
         print("sending packet no {}".format(i))
         tx_packet.pkt['data'] = bytes([x + 1 for x in tx_packet.pkt['data']])
         tx_packet.update_crc()

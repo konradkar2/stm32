@@ -1,6 +1,8 @@
 #include "comms.h"
 #include "core/crc8.h"
+#include "core/str.h"
 #include "core/uart.h"
+#include <string.h>
 
 static struct comms_packet retx_packet = {0};
 static struct comms_packet ack_packet  = {0};
@@ -22,20 +24,30 @@ void print_stats(const struct comms *comms)
 	printf("Buffer space taken: %lu\n", ring_buffer_get_data_len(&comms->packet_rb));
 }
 
+const char *comms_packet_type_str(enum comms_packet_type type)
+{
+	switch (type) {
+		ENUM_CASE(comms_packet_type_data)
+		ENUM_CASE(comms_packet_type_ack)
+		ENUM_CASE(comms_packet_type_retx)
+		ENUM_CASE(comms_packet_type_seq_observed)
+		ENUM_CASE(comms_packet_type_fw_update_req)
+		ENUM_CASE(comms_packet_type_fw_update_res)
+		ENUM_CASE(comms_packet_type_device_id_req)
+		ENUM_CASE(comms_packet_type_device_id_res)
+		ENUM_CASE(comms_packet_type_fw_length_req)
+		ENUM_CASE(comms_packet_type_fw_length_res)
+		ENUM_CASE(comms_packet_type_ready_for_firmware)
+		ENUM_CASE(comms_packet_type_update_successful)
+		ENUM_CASE(comms_packet_type_fw_update_aborted)
+	default:
+		return "comms_packet_type_unknown";
+	}
+}
+
 void log_packet(const struct comms_packet *packet)
 {
-	char *type_str = "UNKNOWN";
-	switch (packet->type) {
-	case comms_packet_type_data:
-		type_str = "DATA";
-		break;
-	case comms_packet_type_ack:
-		type_str = "ACK";
-		break;
-	case comms_packet_type_retx:
-		type_str = "RETX";
-		break;
-	}
+	const char *type_str = comms_packet_type_str(packet->type);
 
 	printf("Packet:\n");
 	printf(" Length: %d\n", packet->length);
@@ -49,7 +61,7 @@ void log_packet(const struct comms_packet *packet)
 	printf(" CRC: %02hhX - %s\n", packet->crc, crc_valid ? "valid" : "invalid");
 }
 
-static void setup_static_packet(struct comms_packet *packet, enum comms_packet_type type)
+static void comms_create_control_packet(struct comms_packet *packet, enum comms_packet_type type)
 {
 	packet->length = PACKET_DATA_LEN;
 	packet->type   = type;
@@ -62,8 +74,8 @@ static void setup_static_packet(struct comms_packet *packet, enum comms_packet_t
 void comms_setup(struct comms *comms, struct uart_driver *uart_drv)
 {
 	comms->uart_drv = uart_drv;
-	setup_static_packet(&retx_packet, comms_packet_type_retx);
-	setup_static_packet(&ack_packet, comms_packet_type_ack);
+	comms_create_control_packet(&retx_packet, comms_packet_type_retx);
+	comms_create_control_packet(&ack_packet, comms_packet_type_ack);
 	ring_buffer_setup(&comms->packet_rb, comms->packet_rb_buffer, PACKET_RB_LEN);
 }
 
@@ -100,7 +112,7 @@ void comms_update(struct comms *comms)
 
 			if (pkt->crc != actual_crc) {
 				comms->stats.pkts_nok_cnt++;
-				comms_write(comms, &retx_packet);
+				comms_send(comms, &retx_packet);
 				comms->state = comms_state_length;
 				break;
 			}
@@ -108,14 +120,14 @@ void comms_update(struct comms *comms)
 			switch (pkt->type) {
 			case comms_packet_type_retx: {
 				comms->stats.pkts_retx_cnt++;
-				comms_write(comms, &comms->last_write_packet);
+				comms_send(comms, &comms->last_write_packet);
 				comms->state = comms_state_length;
 			} break;
 			case comms_packet_type_ack: {
 				comms->stats.pkts_ack_cnt++;
 				comms->state = comms_state_length;
 			} break;
-			case comms_packet_type_data: {
+			default: {
 				comms->stats.pkts_data_cnt++;
 				bool can_be_stored =
 				    ring_buffer_get_left_space_len(&comms->packet_rb) >=
@@ -123,7 +135,7 @@ void comms_update(struct comms *comms)
 
 				if (!can_be_stored) {
 					comms->stats.buffer_full_cnt++;
-					comms_write(
+					comms_send(
 					    comms,
 					    &retx_packet); // not sure if this is a good
 							   // idea, could make an interrupt "loop"
@@ -131,7 +143,7 @@ void comms_update(struct comms *comms)
 					ring_buffer_write_many(&comms->packet_rb, (uint8_t *)pkt,
 							       sizeof(struct comms_packet));
 
-					comms_write(comms, &ack_packet);
+					comms_send(comms, &ack_packet);
 				}
 				comms->state = comms_state_length;
 			}
@@ -150,16 +162,24 @@ bool comms_packet_available(struct comms *comms)
 	       ring_buffer_get_data_len(&comms->packet_rb) >= sizeof(struct comms_packet);
 }
 
-void comms_write(struct comms *comms, struct comms_packet *packet)
+void comms_send(struct comms *comms, struct comms_packet *packet)
 {
 	uart_write(comms->uart_drv, (uint8_t *)packet, sizeof(struct comms_packet));
+	memcpy(&comms->last_write_packet, packet, sizeof(struct comms_packet));
 }
 
-void comms_read(struct comms *comms, struct comms_packet *packet)
+void comms_send_control_packet(struct comms *comms, enum comms_packet_type type)
+{
+	struct comms_packet packet = {0};
+	comms_create_control_packet(&packet, type);
+
+	comms_send(comms, &packet);
+}
+
+void comms_receive(struct comms *comms, struct comms_packet *packet)
 {
 	if (comms_packet_available(comms)) {
 		ring_buffer_read_many(&comms->packet_rb, (uint8_t *)packet,
 				      sizeof(struct comms_packet));
 	}
 }
-

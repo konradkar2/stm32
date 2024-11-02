@@ -79,7 +79,10 @@
     "stdio.h": "c",
     "uart.h": "c",
     "scb.h": "c",
-    "memorymap.h": "c"
+    "memorymap.h": "c",
+    "comms.h": "c",
+    "flash.h": "c",
+    "flash_common_f24.h": "c"
   },
-  "cortex-debug.variableUseNaturalFormat": false
+  "cortex-debug.variableUseNaturalFormat": true
 }

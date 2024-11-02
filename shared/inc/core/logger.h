@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+
 FILE * create_logger(void);
 
 #endif /* INC_CORE_LOGGER_H */
