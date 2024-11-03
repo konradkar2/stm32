@@ -28,8 +28,11 @@ static struct uart_driver s_uart_firmware_io = {
     .mode	     = USART_MODE_TX_RX,
 };
 
+struct comms comms = {0};
+
 static void go_to_app_main(void)
 {
+	comms_print_stats(&comms);
 	printf("Closing UART FW update ifc\n");
 	uart_terminate(&s_uart_firmware_io);
 	printf("Closing logger resources... jumping to main app\n\n");
@@ -96,12 +99,13 @@ static struct bl_state bl_state = {
     .fw_length_received = 0,
     .timeout_timer	= {0},
 };
-struct comms comms = {0};
+
 
 static void abort_fw_update(const char *reason)
 {
 	comms_send_control_packet(&comms, comms_packet_type_fw_update_aborted);
 
+	printf("received firmare bytes: %lu\n", bl_state.fw_length_received);
 	printf("Bootloader FW update aborted at: %s, reason: %s, starting the "
 	       "app...\n",
 	       bl_state_step_str(bl_state.step), reason);
@@ -262,6 +266,7 @@ int main(void)
 			if (comms_packet_available(&comms)) {
 				struct comms_packet data_packet = {0};
 				receive_verify_packet(comms_packet_type_data, &data_packet);
+				
 
 				bl_flash_write(MAIN_APP_START_ADDRESS + bl_state.fw_length_received,
 					       data_packet.data, data_packet.length);
@@ -269,6 +274,7 @@ int main(void)
 
 				if (bl_state.fw_length_received >= bl_state.fw_length) {
 					advance_fsm_to(bl_state_step_done);
+					break;
 				} else {
 					comms_send_control_packet(
 					    &comms, comms_packet_type_ready_for_firmware);

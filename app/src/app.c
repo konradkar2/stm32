@@ -27,10 +27,10 @@ static void vector_setup(void)
 static void gpio_setup(void)
 {
 	rcc_periph_clock_enable(RCC_GPIOB);
-	gpio_mode_setup(LED_PORT, GPIO_MODE_AF, GPIO_PUPD_NONE, LED_RED_PIN);
-	gpio_set_af(LED_PORT, GPIO_AF9, LED_RED_PIN);
+	// gpio_mode_setup(LED_PORT, GPIO_MODE_AF, GPIO_PUPD_NONE, LED_RED_PIN);
+	// gpio_set_af(LED_PORT, GPIO_AF9, LED_RED_PIN);
 
-	gpio_mode_setup(LED_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, LED_BLUE_PIN);
+	gpio_mode_setup(LED_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, LED_RED_PIN);
 }
 
 int main(void)
@@ -48,7 +48,7 @@ int main(void)
 
 	while (1) {
 		if (simple_timer_has_elapsed(&timer)) {
-			gpio_toggle(LED_PORT, LED_BLUE_PIN);
+			gpio_toggle(LED_PORT, LED_RED_PIN);
 		}
 	}
 

@@ -12,14 +12,22 @@ uint8_t comms_compute_crc(const struct comms_packet *packet)
 	return crc8((uint8_t *)packet, sizeof(struct comms_packet) - 1); // exclude CRC
 }
 
-void print_stats(const struct comms *comms)
+void comms_print_stats(const struct comms *comms)
 {
 	printf("Comms Stats:\n");
 	printf("Buffer Full Count: %llu\n", comms->stats.buffer_full_cnt);
-	printf("Packets DATA Count: %llu\n", comms->stats.pkts_data_cnt);
-	printf("Packets ACK Count: %llu\n", comms->stats.pkts_ack_cnt);
-	printf("Packets RETX Count: %llu\n", comms->stats.pkts_retx_cnt);
-	printf("Packets NOK Count: %llu\n", comms->stats.pkts_nok_cnt);
+	printf("RX CRC bad count: %llu\n", comms->stats.crc_bad_cnt);
+	for (int i = 0; i < comms_packet_type_max; ++i) {
+		printf("RX Packets %s Count: %llu\n",
+		       comms_packet_type_str((enum comms_packet_type)i),
+		       comms->stats.rx_packets_cnt[i]);
+	}
+	for (int i = 0; i < comms_packet_type_max; ++i) {
+		printf("TX Packets %s Count: %llu\n",
+		       comms_packet_type_str((enum comms_packet_type)i),
+		       comms->stats.tx_packets_cnt[i]);
+	}
+
 	printf("Buffer space left: %lu\n", ring_buffer_get_left_space_len(&comms->packet_rb));
 	printf("Buffer space taken: %lu\n", ring_buffer_get_data_len(&comms->packet_rb));
 }
@@ -40,8 +48,10 @@ const char *comms_packet_type_str(enum comms_packet_type type)
 		ENUM_CASE(comms_packet_type_ready_for_firmware)
 		ENUM_CASE(comms_packet_type_update_successful)
 		ENUM_CASE(comms_packet_type_fw_update_aborted)
+		ENUM_CASE(comms_packet_type_unknown)
+		ENUM_CASE(comms_packet_type_max)
 	default:
-		return "comms_packet_type_unknown";
+		return "comms_packet_type_invalid";
 	}
 }
 
@@ -111,7 +121,7 @@ void comms_update(struct comms *comms)
 			uint8_t actual_crc = comms_compute_crc(pkt);
 
 			if (pkt->crc != actual_crc) {
-				comms->stats.pkts_nok_cnt++;
+				comms->stats.crc_bad_cnt++;
 				comms_send(comms, &retx_packet);
 				comms->state = comms_state_length;
 				break;
@@ -119,16 +129,21 @@ void comms_update(struct comms *comms)
 
 			switch (pkt->type) {
 			case comms_packet_type_retx: {
-				comms->stats.pkts_retx_cnt++;
+				comms->stats.rx_packets_cnt[(int)comms_packet_type_retx]++;
 				comms_send(comms, &comms->last_write_packet);
 				comms->state = comms_state_length;
 			} break;
 			case comms_packet_type_ack: {
-				comms->stats.pkts_ack_cnt++;
+				comms->stats.rx_packets_cnt[(int)comms_packet_type_ack]++;
 				comms->state = comms_state_length;
 			} break;
 			default: {
-				comms->stats.pkts_data_cnt++;
+				const enum comms_packet_type stat_type =
+				    (int)pkt->type < (int)comms_packet_type_max
+					? pkt->type
+					: comms_packet_type_unknown;
+
+				comms->stats.rx_packets_cnt[(int)stat_type]++;
 				bool can_be_stored =
 				    ring_buffer_get_left_space_len(&comms->packet_rb) >=
 				    sizeof(struct comms_packet);
@@ -164,6 +179,11 @@ bool comms_packet_available(struct comms *comms)
 
 void comms_send(struct comms *comms, struct comms_packet *packet)
 {
+	const enum comms_packet_type stat_type = (int)packet->type < (int)comms_packet_type_max
+						     ? packet->type
+						     : comms_packet_type_unknown;
+
+	comms->stats.tx_packets_cnt[(int)stat_type]++;
 	uart_write(comms->uart_drv, (uint8_t *)packet, sizeof(struct comms_packet));
 	memcpy(&comms->last_write_packet, packet, sizeof(struct comms_packet));
 }

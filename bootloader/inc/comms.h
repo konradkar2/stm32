@@ -23,8 +23,10 @@ enum comms_packet_type {
 	comms_packet_type_ready_for_firmware = 10,
 	comms_packet_type_update_successful  = 11,
 	comms_packet_type_fw_update_aborted  = 12,
+	comms_packet_type_unknown	     = 13,
+	comms_packet_type_max		     = 14,
 };
-const char * comms_packet_type_str(enum comms_packet_type);
+const char *comms_packet_type_str(enum comms_packet_type);
 
 struct comms_packet {
 	uint8_t length;
@@ -43,14 +45,13 @@ enum comms_state_t {
 
 struct comms_stats {
 	uint64_t buffer_full_cnt;
-	uint64_t pkts_data_cnt;
-	uint64_t pkts_ack_cnt;
-	uint64_t pkts_retx_cnt;
-	uint64_t pkts_nok_cnt;
+	uint64_t crc_bad_cnt;
+	uint64_t tx_packets_cnt[comms_packet_type_max];
+	uint64_t rx_packets_cnt[comms_packet_type_max];
 };
 
 struct comms;
-void print_stats(const struct comms *comms);
+void comms_print_stats(const struct comms *comms);
 
 struct comms {
 	struct uart_driver *uart_drv;
