@@ -34,6 +34,12 @@ class Direction(Enum):
     RX = 1
     TX = 2
 
+class SyncSeq(Enum):
+    SYNC_SEQ_0 = 0x11
+    SYNC_SEQ_1 = 0x22
+    SYNC_SEQ_2 = 0x33
+    SYNC_SEQ_3 = 0x44
+
 
 class PacketType(Enum):
     data = 0

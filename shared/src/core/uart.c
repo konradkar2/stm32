@@ -7,11 +7,11 @@
 
 void uart_handle_irq(struct uart_driver *drv)
 {
-	const bool overrun_occurred = usart_get_flag(drv->dev, USART_FLAG_ORE) == 1;
-	const bool received_data    = usart_get_flag(drv->dev, USART_FLAG_RXNE) == 1;
+	const bool overrun_occurred = usart_get_flag(drv->usart_dev, USART_FLAG_ORE) == 1;
+	const bool received_data    = usart_get_flag(drv->usart_dev, USART_FLAG_RXNE) == 1;
 
 	if (received_data || overrun_occurred) {
-		if (ring_buffer_write(&drv->rb, usart_recv(drv->dev))) {
+		if (ring_buffer_write(&drv->rb, usart_recv(drv->usart_dev))) {
 			// handle buffer overflow
 		}
 	}
@@ -25,21 +25,36 @@ void uart_setup(struct uart_driver *drv)
 	gpio_mode_setup(drv->gpio_port, GPIO_MODE_AF, GPIO_PUPD_NONE, drv->gpio_pins);
 	gpio_set_af(drv->gpio_port, drv->gpio_af, drv->gpio_pins);
 
-	rcc_periph_clock_enable(drv->clock_dev);
-	usart_set_mode(drv->dev, drv->mode);
-	usart_set_flow_control(drv->dev, USART_FLOWCONTROL_NONE);
-	usart_set_databits(drv->dev, 8);
-	usart_set_baudrate(drv->dev, drv->baud_rate);
-	usart_set_parity(drv->dev, 0);
-	usart_set_stopbits(drv->dev, 1);
+	rcc_periph_clock_enable(drv->usart_clock_dev);
+	usart_set_mode(drv->usart_dev, drv->mode);
+	usart_set_flow_control(drv->usart_dev, USART_FLOWCONTROL_NONE);
+	usart_set_databits(drv->usart_dev, 8);
+	usart_set_baudrate(drv->usart_dev, drv->baud_rate);
+	usart_set_parity(drv->usart_dev, 0);
+	usart_set_stopbits(drv->usart_dev, 1);
 
 	if ((drv->mode & USART_MODE_RX) == USART_MODE_RX) {
 
-		usart_enable_rx_interrupt(drv->dev);
+		usart_enable_rx_interrupt(drv->usart_dev);
 		nvic_enable_irq(drv->nvic_irq);
 	}
 
-	usart_enable(drv->dev);
+	usart_enable(drv->usart_dev);
+}
+
+void uart_terminate(struct uart_driver *drv)
+{
+	usart_disable(drv->usart_dev);
+
+	if ((drv->mode & USART_MODE_RX) == USART_MODE_RX) {
+
+		usart_disable_rx_interrupt(drv->usart_dev);
+		nvic_disable_irq(drv->nvic_irq);
+	}
+	
+	rcc_periph_clock_disable(drv->usart_clock_dev);
+	gpio_mode_setup(drv->gpio_port, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, drv->gpio_pins);
+	rcc_periph_clock_disable(drv->gpio_port_clk);
 }
 
 void uart_write(struct uart_driver *drv, uint8_t *data, const uint32_t length)
@@ -51,7 +66,7 @@ void uart_write(struct uart_driver *drv, uint8_t *data, const uint32_t length)
 
 void uart_write_byte(struct uart_driver *drv, uint8_t data)
 {
-	usart_send_blocking(drv->dev, (uint16_t)data);
+	usart_send_blocking(drv->usart_dev, (uint16_t)data);
 }
 
 uint32_t uart_read(struct uart_driver *drv, uint8_t *data, const uint32_t length)

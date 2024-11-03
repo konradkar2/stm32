@@ -5,5 +5,6 @@
 
 
 FILE * create_logger(void);
+void destroy_logger(void);
 
 #endif /* INC_CORE_LOGGER_H */

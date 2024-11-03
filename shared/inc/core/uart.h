@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 struct uart_driver {
-	uint32_t	      dev;
-	enum rcc_periph_clken clock_dev;
+	uint32_t	      usart_dev;
+	enum rcc_periph_clken usart_clock_dev;
 	uint8_t	      nvic_irq;
     uint32_t gpio_pins;
     uint32_t gpio_port;
@@ -29,6 +29,7 @@ struct uart_driver {
 };
 
 void uart_setup(struct uart_driver *drv);
+void uart_terminate(struct uart_driver *drv);
 void uart_handle_irq(struct uart_driver *drv);
 
 void	 uart_write(struct uart_driver *drv, uint8_t *data, const uint32_t length);

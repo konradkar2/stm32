@@ -16,7 +16,7 @@
     {
       "name": "ST-Link: Attach to Application",
       "cwd": "${workspaceFolder}/app",
-      "executable": "./app.elf",
+      "executable": "${workspaceFolder}/app/app.elf",
       "servertype": "stutil",
       "request": "attach",
       "type": "cortex-debug",

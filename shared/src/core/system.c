@@ -33,3 +33,10 @@ void system_setup(void)
 	rcc_setup();
 	systic_setup();
 }
+
+void system_terminate(void)
+{	
+	systick_interrupt_disable();
+	systick_counter_disable();
+	systick_clear();
+}

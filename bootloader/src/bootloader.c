@@ -7,32 +7,37 @@
 #include <core/uart.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/scb.h>
+#include <libopencm3/cm3/vector.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/usart.h>
 #include <stdint.h>
 #include <stdio.h>
 
-#define BOOTLOADER_SIZE	       0x10000U
 #define MAIN_APP_START_ADDRESS (FLASH_BASE + BOOTLOADER_SIZE)
-#define MAX_FW_LENGTH	       (FLASH_SIZE)
+
+static struct uart_driver s_uart_firmware_io = {
+    .usart_dev	     = USART3,
+    .usart_clock_dev = RCC_USART3,
+    .nvic_irq	     = NVIC_USART3_IRQ,
+    .gpio_pins	     = GPIO8 | GPIO9,
+    .gpio_port	     = GPIOD,
+    .gpio_port_clk   = RCC_GPIOD,
+    .gpio_af	     = GPIO_AF7,
+    .baud_rate	     = 115200,
+    .mode	     = USART_MODE_TX_RX,
+};
+
 static void go_to_app_main(void)
 {
-	while (true) {
-	}
-	// vector_table_t * vector_table = (vector_table_t * )MAIN_APP_START_ADDRESS;
-	// vector_table->reset();
-}
+	printf("Closing UART FW update ifc\n");
+	uart_terminate(&s_uart_firmware_io);
+	printf("Closing logger resources... jumping to main app\n\n");
+	destroy_logger();
 
-static struct uart_driver s_uart_firmware_io = {.dev	       = USART3,
-						.clock_dev     = RCC_USART3,
-						.nvic_irq      = NVIC_USART3_IRQ,
-						.gpio_pins     = GPIO8 | GPIO9,
-						.gpio_port     = GPIOD,
-						.gpio_port_clk = RCC_GPIOD,
-						.gpio_af       = GPIO_AF7,
-						.baud_rate     = 115200,
-						.mode	       = USART_MODE_TX_RX};
+	vector_table_t *vector_table = (vector_table_t *)MAIN_APP_START_ADDRESS;
+	vector_table->reset();
+}
 
 void usart3_isr(void)
 {
@@ -97,7 +102,7 @@ static void abort_fw_update(const char *reason)
 {
 	comms_send_control_packet(&comms, comms_packet_type_fw_update_aborted);
 
-	printf("bootloader FW update aborted at: %s, reason: %s, starting the "
+	printf("Bootloader FW update aborted at: %s, reason: %s, starting the "
 	       "app...\n",
 	       bl_state_step_str(bl_state.step), reason);
 
@@ -117,7 +122,7 @@ static void receive_verify_packet(enum comms_packet_type type, struct comms_pack
 	}
 
 	if (actual_packet_type != type) {
-		printf("expected to received (%s), instead got (%s)\n", comms_packet_type_str(type),
+		printf("Expected to received (%s), instead got (%s)\n", comms_packet_type_str(type),
 		       comms_packet_type_str(actual_packet_type));
 		abort_fw_update("invalid packet");
 	}
@@ -137,7 +142,7 @@ static void check_timeout(void)
 
 static void advance_fsm_to(enum bl_state_step step)
 {
-	printf("advancing fsm to %s\n", bl_state_step_str(step));
+	printf("Advancing fsm to %s\n", bl_state_step_str(step));
 	simple_timer_reset(&bl_state.timeout_timer);
 	bl_state.step = step;
 }
@@ -154,7 +159,7 @@ int main(void)
 
 	if (bl_flash_is_dual_bank()) {
 
-		printf("dual bank is enabled, cannot perform flash operation\n");
+		printf("Dual bank is enabled, cannot perform flash operation\n");
 		return 1;
 	}
 
@@ -178,7 +183,7 @@ int main(void)
 				    bl_state.sync_seq[2] == SYNC_SEQ_2 &&
 				    bl_state.sync_seq[3] == SYNC_SEQ_3) {
 
-					printf("sync seq observed, sending seq observed\n");
+					printf("Sync seq observed, sending seq observed\n");
 
 					comms_send_control_packet(&comms,
 								  comms_packet_type_seq_observed);
@@ -261,6 +266,9 @@ int main(void)
 
 				if (bl_state.fw_length_received >= bl_state.fw_length) {
 					advance_fsm_to(bl_state_step_done);
+				} else {
+					comms_send_control_packet(
+					    &comms, comms_packet_type_ready_for_firmware);
 				}
 
 				simple_timer_reset(&bl_state.timeout_timer);
@@ -272,9 +280,11 @@ int main(void)
 			go_to_app_main();
 
 		} break;
+		default:
+			advance_fsm_to(bl_state_step_sync);
+			break;
 		}
 	}
 
 	return 0;
 }
-
