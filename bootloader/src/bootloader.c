@@ -194,6 +194,7 @@ int main(void)
 			}
 		} break;
 		case bl_state_step_wait_for_update_req: {
+			comms_update(&comms);
 			if (comms_packet_available(&comms)) {
 				receive_verify_control_packet(comms_packet_type_fw_update_req);
 				comms_send_control_packet(&comms, comms_packet_type_fw_update_res);
@@ -207,7 +208,7 @@ int main(void)
 
 		} break;
 		case bl_state_step_device_id_res: {
-
+			comms_update(&comms);
 			if (comms_packet_available(&comms)) {
 				struct comms_packet device_id_res_packet = {0};
 				receive_verify_packet(comms_packet_type_device_id_res,
@@ -227,6 +228,7 @@ int main(void)
 			advance_fsm_to(bl_state_step_firmware_length_res);
 		} break;
 		case bl_state_step_firmware_length_res: {
+			comms_update(&comms);
 			if (comms_packet_available(&comms)) {
 				struct comms_packet fw_length_packet = {0};
 				receive_verify_packet(comms_packet_type_fw_length_res,
@@ -256,6 +258,7 @@ int main(void)
 			advance_fsm_to(bl_state_step_receive_firmware);
 		} break;
 		case bl_state_step_receive_firmware: {
+			comms_update(&comms);
 			if (comms_packet_available(&comms)) {
 				struct comms_packet data_packet = {0};
 				receive_verify_packet(comms_packet_type_data, &data_packet);

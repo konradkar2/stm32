@@ -11,6 +11,8 @@ comms_packet_len = 19
 comms_packet_format = "B B 16s B"
 comms_packet_format_crc = "B B 16s"
 
+PACKET_DATA_LEN = 16
+SYNC_SEQ = [0x11, 0x22, 0x33, 0x44]
 
 def crc8(data):
     crc = 0
@@ -34,11 +36,6 @@ class Direction(Enum):
     RX = 1
     TX = 2
 
-class SyncSeq(Enum):
-    SYNC_SEQ_0 = 0x11
-    SYNC_SEQ_1 = 0x22
-    SYNC_SEQ_2 = 0x33
-    SYNC_SEQ_3 = 0x44
 
 
 class PacketType(Enum):
@@ -57,18 +54,26 @@ class PacketType(Enum):
     fw_update_aborted = 12
     
     def __str__(self):
-        return str(self.value)
+        return str(self._name_)
 
 
 class Packet:
     def __init__(self):
         self.dir = Direction.TX
         self.pkt = {
-            "length": 16,
+            "length": 0,
             "type": 0,  # data
-            "data": bytes([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF]),
+            "data": bytes(0xff for _ in range(PACKET_DATA_LEN)),
             "crc": 0,  # calculate later
         }
+    
+    @staticmethod
+    def create_ctrl_packet(type: PacketType):
+        packet = Packet()
+        packet.pkt["type"] = type.value
+        packet.update_crc()
+        
+        return packet
 
     @staticmethod
     def deserialize(bytes):
@@ -160,27 +165,32 @@ def main():
         exit(1)
 
     print("{} opened successfuly".format(serial_dev))
+    
+    ser.write(bytes(SYNC_SEQ))
 
-    rx_packet = receive_packet(ser)
-    rx_packet.log()
+    sync_observed_pkt = receive_packet(ser)
+    sync_observed_pkt.log()
 
-    tx_packet = Packet()
-    tx_packet.log()
-    send_packet(ser, tx_packet.serialize())
+    fw_update_req_pkt = Packet.create_ctrl_packet(PacketType.fw_update_req)
+    fw_update_req_pkt.log()
+    send_packet(ser, fw_update_req_pkt.serialize())
+    
+    fw_update_res_pkt = receive_packet(ser)
+    fw_update_res_pkt.log()
 
-    rx_packet = receive_packet(ser)
-    rx_packet.log()
+    # rx_packet = receive_packet(ser)
+    # rx_packet.log()
 
-    tx_packet = Packet()
-    for i in range(0, 10):
-        print("sending packet no {}".format(i))
-        tx_packet.pkt['data'] = bytes([x + 1 for x in tx_packet.pkt['data']])
-        tx_packet.update_crc()
-        tx_packet.log()
-        send_packet(ser, tx_packet.serialize())
+    # tx_packet = Packet()
+    # for i in range(0, 10):
+    #     print("sending packet no {}".format(i))
+    #     tx_packet.pkt['data'] = bytes([x + 1 for x in tx_packet.pkt['data']])
+    #     tx_packet.update_crc()
+    #     tx_packet.log()
+    #     send_packet(ser, tx_packet.serialize())
 
-        rx_packet = receive_packet(ser)
-        rx_packet.log()
+    #     rx_packet = receive_packet(ser)
+    #     rx_packet.log()
 
 
 if __name__ == "__main__":
